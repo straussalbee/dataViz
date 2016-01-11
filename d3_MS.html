@@ -1,0 +1,344 @@
+<!--sortable barplot displaying NK cell, CD8 T cell, and CD4 T cell diversity in samples from African women -->
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>NK diversity</title>
+		<script type="text/javascript" src="../d3/d3.v3.js"></script>
+				<style type="text/css">
+			body {
+				font-family:Helvetica, sans-serif;
+				margin: 0;
+			}
+			.axis path,
+			.axis line {
+				fill: none;
+				stroke: black;
+				shape-rendering: crispEdges;
+			}
+			
+			.axis text {
+				font-family: sans-serif;
+				font-size: 11px;
+			}
+			rect {
+				  fill-opacity: .85;
+			}
+
+			rect:hover {
+				fill: black;
+			}
+			svg {
+			    display: block;
+			    margin: 0 auto;
+			}
+			.basic-title {
+				color:00A3CC;
+				background-color:#FFFFFF;
+				font-size:28px;
+				font-style:bold;
+				text-align: center;
+			}
+
+			.container{
+				margin:0 auto;
+				width: 960px;
+				text-align: center;
+			}
+			[type="button"] {
+				background-color: black;
+				color: white;
+				font-weight: bold;
+				font-size: 20px;
+				padding: 5px 10px 6px;
+				margin: 5px;
+				-webkit-border-radius: 5px;
+				-moz-box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+				-webkit-box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+			}
+			label{
+				display: block;
+				margin: 0 auto;
+			}
+		</style>
+	</head>
+	<body>
+
+		  <p class="basic-title">Human Natural Killer Cell Diversity in HIV Acquisition<br>Visualized using D3.js</p>
+
+		<span class="container">		 
+		<div id="NKButton"><input type="button" value="NK cells" /></div>
+		<div id="CD8Button"><input type="button" value="CD8 T cells" /></div>
+		<div id="CD4Button"><input type="button" value="CD4 T cells" /></div>
+		<p></p>
+		<label><input type="checkbox" id="sortButton"> Sort values</label>
+		</span>
+		<span class = "container"> 
+		<script type="text/javascript">
+
+			var dataset;
+
+			var w = 700;
+			var h = 600;
+			var barPadding = 1;
+			var padding = 50;
+
+			d3.csv("MSCompiledWIDE.csv", function(error, data) {
+
+		        if (error) {  //If error is not null, something went wrong.
+		          console.log(error);  //Log the error.
+		        } else {      //If no error, the file loaded correctly.
+		          console.log(data);   //Log the data.
+
+		      data.forEach(function(d) { //convert to numeric
+			    d.Diversity_NK = +d.Diversity_NK;
+			    d.Diversity_CD8 = +d.Diversity_CD8;
+			    d.Diversity_CD4 = +d.Diversity_CD4;
+			    d.Order = +d.Order;
+			  });
+
+		      dataset = data;
+		      generateVis();
+		        }
+		    });
+
+			function generateVis(){
+
+
+			var xScale = d3.scale.ordinal()
+				 .domain(d3.range(dataset.length))
+				 .rangeRoundBands([0, w - padding], 0.05);
+
+			var yScale = d3.scale.linear()
+				 .domain([0, d3.max(dataset, function(d) { return d.Diversity_NK; })])
+				 .range([h - padding, padding]);
+
+			//Define X axis
+			var xAxis = d3.svg.axis()
+							  .scale(xScale)
+							  .orient("bottom")
+							  .ticks(5);
+
+			//Define Y axis
+			var yAxis = d3.svg.axis()
+							  .scale(yScale)
+							  .orient("left")
+							  .ticks(5);
+
+
+
+			var svg = d3.select("body")
+				.append("svg")
+				.attr("width", w)
+				.attr("height", h);
+
+			svg.selectAll("rect")
+			   .data(dataset)
+			   .enter()
+			   .append("rect")
+
+			   .attr("x", function(d, i) {
+			   		return xScale(i) + padding;
+			   })
+			   .attr("y", function(d) {
+			   		return yScale(d.Diversity_NK) ;
+			   })
+			   .attr("width", xScale.rangeBand())
+			   .attr("height", function(d) {
+			   		return h - yScale(d.Diversity_NK) - padding;
+			   })
+			   .attr("fill", function(d) {
+			   	    if (d.Type2 == "Control") {return "blue"};
+					if (d.Type2 == "Case") {return "red"};
+				})
+				.on("mouseover", function(d) { //tooltips to show diversity values
+
+					//Get this bar's x/y values, then augment for the tooltip
+					var xPosition = parseFloat(d3.select(this).attr("x")) + xScale.rangeBand() / 2;
+					var yPosition = parseFloat(d3.select(this).attr("y")) + 10;
+
+					//Create the tooltip label
+					svg.append("text")
+					   .attr("id", "tooltip")
+					   .attr("x", xPosition)
+					   .attr("y", yPosition)
+					   .attr("text-anchor", "middle")
+					   .attr("font-family", "sans-serif")
+					   .attr("font-size", "9px")
+					   .attr("font-weight", "bold")
+					   .attr("fill", "white")
+					   .text(Math.round(d.Diversity_NK));
+
+			   })
+			   .on("mouseout", function() {
+			   
+					//Remove the tooltip
+					d3.select("#tooltip").remove();
+			   });
+
+			//Create X axis
+			svg.append("g")
+				.attr("class", "x axis")
+				.attr("transform", "translate(" + padding + "," + (h - padding) + ")")
+				.call(xAxis);
+
+			//x-axis label
+			svg.append("text")
+            .attr("text-anchor", "middle")
+            .attr("transform", "translate("+ (padding/3) +","+(h/2)+")rotate(-90)")  // text is drawn off the screen top left, move down and out and rotate
+            .text("Diversity");
+			
+			//Create Y axis
+			svg.append("g")
+				.attr("class", "y axis")
+				.attr("transform", "translate(" + padding +  "," + "0)") ///fix
+				.call(yAxis);
+
+			//Cell type label
+			svg.append("text") 
+			.attr("class", "cellLabel") 
+            .attr("text-anchor", "middle")
+            .attr("transform", "translate("+ (w/1.2) +","+(h/8)+")")  //move to top right corner
+            .attr("font-family", "sans-serif")
+		    .attr("font-size", "38px")
+		    .attr("font-weight", "bold")
+            .text("NK cells");
+
+	  		d3.select("#sortButton").on("change", changetoNK);
+
+			function changetoNK() {
+			    var x0 = xScale.domain(dataset.sort(this.checked
+			        ? function(a, b) { return b.Diversity_NK - a.Diversity_NK; }
+			        : function(a, b) { return d3.ascending(a.Order, b.Order); })
+			        .map(function(d) { return d.Order; }))
+			        .copy();
+
+			    svg.selectAll("rect")
+			        .sort(function(a, b) { return x0(a.Order) - x0(b.Order); });
+
+			    var transition = svg.transition().duration(350),
+			        delay = function(d, i) { return i * 30; };
+
+			    transition.selectAll("rect")
+			        .delay(delay)
+			        .attr("x", function(d) { return x0(d.Order) + padding; });
+			  	}
+
+			function changetoCD8() {
+			    var x0 = xScale.domain(dataset.sort(this.checked
+			        ? function(a, b) { return b.Diversity_CD8 - a.Diversity_CD8; }
+			        : function(a, b) { return d3.ascending(a.Order, b.Order); })
+			        .map(function(d) { return d.Order; }))
+			        .copy();
+
+			    svg.selectAll("rect")
+			        .sort(function(a, b) { return x0(a.Order) - x0(b.Order); });
+
+			    var transition = svg.transition().duration(350),
+			        delay = function(d, i) { return i * 30; };
+
+			    transition.selectAll("rect")
+			        .delay(delay)
+			        .attr("x", function(d) { return x0(d.Order) + padding; });
+			  	}
+
+			function changetoCD4() {
+			    var x0 = xScale.domain(dataset.sort(this.checked
+			        ? function(a, b) { return b.Diversity_CD4 - a.Diversity_CD4; }
+			        : function(a, b) { return d3.ascending(a.Order, b.Order); })
+			        .map(function(d) { return d.Order; }))
+			        .copy();
+
+			    svg.selectAll("rect")
+			        .sort(function(a, b) { return x0(a.Order) - x0(b.Order); });
+
+			    var transition = svg.transition().duration(350),
+			        delay = function(d, i) { return i * 30; };
+
+			    transition.selectAll("rect")
+			        .delay(delay)
+			        .attr("x", function(d) { return x0(d.Order) + padding; });
+			  	}
+
+			//On click of one of 3 buttons, update with new data			
+			d3.selectAll("div") 
+			    .on("click", function() {
+			    	var buttonID = d3.select(this).attr("id");
+			    	console.log(buttonID);
+					if (buttonID == "NKButton") {  //update to be NK cells
+						d3.select("#sortButton").on("change", changetoNK); //sort by NK diversity order if sort button is clicked
+
+						svg.select(".cellLabel")
+							.text("NK cells");
+
+				    	yScale.domain([0, d3.max(dataset, function(d) { return d.Diversity_NK; })]); //Update y scale domain (range does not change)
+						svg.selectAll("rect") //Update all rects
+						   .transition()
+						   .delay(function(d, i) {
+							    return i / dataset.length * 200;
+							})
+						   .duration(1000)
+						   .attr("y", function(d) {
+						   		return yScale(d.Diversity_NK);
+						   })
+						   .attr("height", function(d) {
+						   		return h - yScale(d.Diversity_NK) - padding;
+						   })}
+
+			    	else if (buttonID == "CD8Button") {  //update to be CD8 T cells
+			    		d3.select("#sortButton").on("change", changetoCD8);
+				    	yScale.domain([0, d3.max(dataset, function(d) { return d.Diversity_CD8; })]); //Update y scale domain (range does not change)
+
+						svg.select(".cellLabel")
+							.text("CD8 T cells")
+
+						svg.selectAll("rect") //Update all rects
+						   .transition()
+						   .delay(function(d, i) {
+							    return i / dataset.length * 200;
+							})
+						   .duration(1000)
+						   .attr("y", function(d) {
+						   		return yScale(d.Diversity_CD8);
+						   })
+						   .attr("height", function(d) {
+						   		return h - yScale(d.Diversity_CD8) - padding;
+						   })} 
+
+				   else { //update to be CD4 T cells
+				   		d3.select("#sortButton").on("change", changetoCD4);
+				   	 	yScale.domain([0, d3.max(dataset, function(d) { return d.Diversity_CD4; })]); //Update y scale domain (range does not change)
+						svg.select(".cellLabel")
+							.text("CD4 T cells");
+						svg.selectAll("rect") //Update all rects
+						   .transition()
+						   .delay(function(d, i) {
+							    return i / dataset.length * 200;
+							})
+						   .duration(1000)
+						   .attr("y", function(d) {
+						   		return yScale(d.Diversity_CD4);
+						   })
+						   .attr("height", function(d) {
+						   		return h - yScale(d.Diversity_CD4) - padding;
+						   })}
+
+					svg.select(".y.axis") //Update Y axis
+				    	.transition()
+				    	.duration(1000)
+						.call(yAxis);
+					});
+
+
+			
+
+}
+		</script>
+		</section>
+		</span>
+	<span class="container">
+		<p>Each bar represents a blood sample from a Kenyan woman, obtained while she was HIV-negative.<br>The <span style = "color:red"> cases </span> went on to acquire HIV. The <span style = "color:blue">controls</span> did not.</p>
+	</span>
+	</body>
+</html>
